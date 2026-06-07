@@ -70,7 +70,7 @@ def t(chat_id, key, **kwargs):
 def get_lang(chat_id):
     return lang.get(chat_id, "fa")
 
-# HTTP server برای Render
+# HTTP server برای Railway
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -199,8 +199,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def bot_added(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
     chat_id = chat.id
-    
-    # پیدا کردن مالک
     owner_name = "نامشخص"
     try:
         admins = await context.bot.get_chat_administrators(chat_id)
@@ -209,14 +207,11 @@ async def bot_added(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 owner_name = f"@{a.user.username}" if a.user.username else a.user.first_name
     except:
         pass
-    
-    # قفل‌های پیشفرض
     locks[chat_id] = {
         "link": True, "file": True, "sticker": True,
         "bot": True, "forward": False, "photo": False,
         "video": False, "gif": False, "game": False
     }
-    
     text = t(chat_id, "installed", owner=owner_name)
     await update.message.reply_text(text)
 
@@ -243,17 +238,17 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if data == "menu_main":
         await query.edit_message_text(t(chat_id, "main_menu"), reply_markup=main_menu_keyboard(chat_id))
-    
+
     elif data == "menu_locks":
         l = get_lang(chat_id)
         txt = "🔒 مدیریت قفل‌ها:" if l == "fa" else "🔒 Lock Management:"
         await query.edit_message_text(txt, reply_markup=locks_keyboard(chat_id))
-    
+
     elif data == "menu_punish":
         l = get_lang(chat_id)
         txt = "⚖️ مجازات کاربران:" if l == "fa" else "⚖️ Punishments:"
         await query.edit_message_text(txt, reply_markup=punish_keyboard(chat_id))
-    
+
     elif data == "menu_lang":
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("🇮🇷 فارسی", callback_data="setlang_fa")],
@@ -261,11 +256,11 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("🔙 برگشت / Back", callback_data="menu_main")],
         ])
         await query.edit_message_text(t(chat_id, "choose_lang"), reply_markup=keyboard)
-    
+
     elif data.startswith("setlang_"):
         lang[chat_id] = data.split("_")[1]
         await query.edit_message_text(t(chat_id, "main_menu"), reply_markup=main_menu_keyboard(chat_id))
-    
+
     elif data.startswith("lock_") or data.startswith("unlock_"):
         if data == "lock_all":
             locks[chat_id] = {k: True for k in ["link","file","photo","video","sticker","gif","forward","bot","game"]}
@@ -276,11 +271,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if chat_id not in locks:
                 locks[chat_id] = {}
             locks[chat_id][lock_name] = not locks[chat_id].get(lock_name, False)
-        
         l = get_lang(chat_id)
         txt = "🔒 مدیریت قفل‌ها:" if l == "fa" else "🔒 Lock Management:"
         await query.edit_message_text(txt, reply_markup=locks_keyboard(chat_id))
-    
+
     elif data == "menu_welcome":
         l = get_lang(chat_id)
         cur = welcome_msg.get(chat_id, "")
@@ -290,7 +284,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             txt = f"👋 Current welcome:\n{cur}\n\nTo change write:\nwelcome [new message]"
         keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 برگشت", callback_data="menu_main")]])
         await query.edit_message_text(txt, reply_markup=keyboard)
-    
+
     elif data == "menu_filter":
         l = get_lang(chat_id)
         words = bad_words.get(chat_id, [])
@@ -301,7 +295,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             txt = f"🔤 Filtered words:\n{words_text}\n\nTo add: filter [word]\nTo remove: removefilter [word]"
         keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 برگشت", callback_data="menu_main")]])
         await query.edit_message_text(txt, reply_markup=keyboard)
-    
+
     elif data == "menu_stats":
         try:
             count = await context.bot.get_chat_member_count(chat_id)
@@ -318,7 +312,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
         return
-    
+
     msg = update.message
     text = msg.text.strip()
     text_lower = text.lower()
@@ -343,13 +337,12 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except: pass
             return
 
-    # دستورات ریپلی
     admin_commands_fa = ["بن", "آنبن", "کیک", "سکوت", "آنسکوت", "ادمین", "عزل", "اخطار", "حذف‌اخطار"]
     admin_commands_en = ["ban", "unban", "kick", "mute", "unmute", "admin", "demote", "warn", "unwarn"]
-    
+
     is_cmd = text_lower in [c.lower() for c in admin_commands_fa + admin_commands_en] or \
              any(text_lower.startswith(c.lower()) for c in ["سکوت موقت", "tmute", "خوش‌آمد", "welcome", "فیلتر", "filter", "حذف‌فیلتر", "removefilter", "قفل", "lock", "آنلاک", "unlock"])
-    
+
     if not is_cmd:
         return
 
@@ -422,4 +415,8 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await msg.reply_text(t(chat_id, "banned", name=name))
 
     elif text_lower in ["آنبن", "unban"]:
-        await context.bot.unban_chat_member(ch
+        await context.bot.unban_chat_member(chat_id, target_id)
+        await msg.reply_text(t(chat_id, "unbanned", name=name))
+
+    elif text_lower in ["کیک", "kick"]:
+      

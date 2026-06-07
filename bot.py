@@ -1,7 +1,7 @@
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update, ChatPermissions
-from telegram.ext import Application, CommandHandler, MessageHandler, filters
+from telegram.ext import Application, MessageHandler, CommandHandler, filters
 
 TOKEN = "8443404814:AAHMhzPkOrwnJztT1suTP4Tfma_yAWVUcKY"
 
@@ -19,53 +19,71 @@ def run_server():
 threading.Thread(target=run_server, daemon=True).start()
 
 async def start(update, context):
-    await update.message.reply_text("سلام! ربات مدیریت گروه\n/help برای راهنما")
+    await update.message.reply_text("سلام! ربات فعاله\nکلمات: بن، آنبن، سکوت، آنسکوت، کیک، ادمین، عزل، اخطار")
 
-async def welcome(update, context):
-    for m in update.message.new_chat_members:
-        await update.message.reply_text(f"Welcome {m.first_name}!")
+async def handle_text(update, context):
+    if not update.message or not update.message.text:
+        return
+    
+    msg = update.message
+    text = msg.text.strip().lower()
+    chat_id = msg.chat_id
+    
+    # فقط ادمین‌ها بتونن استفاده کنن
+    member = await context.bot.get_chat_member(chat_id, msg.from_user.id)
+    if member.status not in ["administrator", "creator"]:
+        return
+    
+    # باید reply باشه
+    if not msg.reply_to_message:
+        return
+    
+    target = msg.reply_to_message.from_user
+    target_id = target.id
+    name = target.first_name
 
-async def ban(update, context):
-    if not update.message.reply_to_message: return
-    u = update.message.reply_to_message.from_user
-    await context.bot.ban_chat_member(update.effective_chat.id, u.id)
-    await update.message.reply_text(f"Banned {u.first_name}")
+    if text == "بن":
+        await context.bot.ban_chat_member(chat_id, target_id)
+        await msg.reply_text(f"🚫 {name} بن شد")
 
-async def mute(update, context):
-    if not update.message.reply_to_message: return
-    u = update.message.reply_to_message.from_user
-    await context.bot.restrict_chat_member(update.effective_chat.id, u.id, ChatPermissions(can_send_messages=False))
-    await update.message.reply_text(f"Muted {u.first_name}")
+    elif text == "آنبن":
+        await context.bot.unban_chat_member(chat_id, target_id)
+        await msg.reply_text(f"✅ {name} آنبن شد")
 
-async def unmute(update, context):
-    if not update.message.reply_to_message: return
-    u = update.message.reply_to_message.from_user
-    await context.bot.restrict_chat_member(update.effective_chat.id, u.id, ChatPermissions(can_send_messages=True))
-    await update.message.reply_text(f"Unmuted {u.first_name}")
+    elif text == "کیک":
+        await context.bot.ban_chat_member(chat_id, target_id)
+        await context.bot.unban_chat_member(chat_id, target_id)
+        await msg.reply_text(f"👢 {name} کیک شد")
 
-async def kick(update, context):
-    if not update.message.reply_to_message: return
-    u = update.message.reply_to_message.from_user
-    await context.bot.ban_chat_member(update.effective_chat.id, u.id)
-    await context.bot.unban_chat_member(update.effective_chat.id, u.id)
-    await update.message.reply_text(f"Kicked {u.first_name}")
+    elif text == "سکوت":
+        await context.bot.restrict_chat_member(chat_id, target_id, ChatPermissions(can_send_messages=False))
+        await msg.reply_text(f"🔇 {name} سکوت شد")
 
-async def rules(update, context):
-    await update.message.reply_text("Rules: 1.Respect 2.No ads 3.No spam")
+    elif text == "آنسکوت":
+        await context.bot.restrict_chat_member(chat_id, target_id, ChatPermissions(
+            can_send_messages=True, can_send_media_messages=True,
+            can_send_other_messages=True, can_add_web_page_previews=True))
+        await msg.reply_text(f"🔊 {name} آنسکوت شد")
 
-async def help_cmd(update, context):
-    await update.message.reply_text("/ban /kick /mute /unmute /rules /start")
+    elif text == "ادمین":
+        await context.bot.promote_chat_member(chat_id, target_id,
+            can_delete_messages=True, can_restrict_members=True,
+            can_pin_messages=True, can_invite_users=True)
+        await msg.reply_text(f"⭐ {name} ادمین شد")
+
+    elif text == "عزل":
+        await context.bot.promote_chat_member(chat_id, target_id,
+            can_delete_messages=False, can_restrict_members=False,
+            can_pin_messages=False, can_invite_users=False)
+        await msg.reply_text(f"⬇️ {name} عزل شد")
+
+    elif text == "اخطار":
+        await msg.reply_text(f"⚠️ {name} اخطار گرفت! دفعه بعد بن میشی")
 
 def main():
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome))
-    app.add_handler(CommandHandler("ban", ban))
-    app.add_handler(CommandHandler("mute", mute))
-    app.add_handler(CommandHandler("unmute", unmute))
-    app.add_handler(CommandHandler("kick", kick))
-    app.add_handler(CommandHandler("rules", rules))
-    app.add_handler(CommandHandler("help", help_cmd))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
     app.run_polling()
 
 if __name__ == "__main__":

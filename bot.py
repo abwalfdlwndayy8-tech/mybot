@@ -18,6 +18,9 @@ def run_server():
 
 threading.Thread(target=run_server, daemon=True).start()
 
+async def start(update, context):
+    await update.message.reply_text("سلام! ربات مدیریت گروه\n/help برای راهنما")
+
 async def welcome(update, context):
     for m in update.message.new_chat_members:
         await update.message.reply_text(f"Welcome {m.first_name}!")
@@ -51,10 +54,11 @@ async def rules(update, context):
     await update.message.reply_text("Rules: 1.Respect 2.No ads 3.No spam")
 
 async def help_cmd(update, context):
-    await update.message.reply_text("/ban /kick /mute /unmute /rules")
+    await update.message.reply_text("/ban /kick /mute /unmute /rules /start")
 
 def main():
     app = Application.builder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome))
     app.add_handler(CommandHandler("ban", ban))
     app.add_handler(CommandHandler("mute", mute))

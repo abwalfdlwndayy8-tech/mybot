@@ -1,7 +1,22 @@
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update, ChatPermissions
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import Application, CommandHandler, MessageHandler, filters
 
 TOKEN = "8443404814:AAHMhzPkOrwnJztT1suTP4Tfma_yAWVUcKY"
+
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"OK")
+    def log_message(self, *args):
+        pass
+
+def run_server():
+    HTTPServer(("0.0.0.0", 10000), Handler).serve_forever()
+
+threading.Thread(target=run_server, daemon=True).start()
 
 async def welcome(update, context):
     for m in update.message.new_chat_members:
